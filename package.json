@@ -1,0 +1,41 @@
+{
+  "name": "testarc-demo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Deterministic black-box E2E validation for TestArc's public reporters, API, and UI",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mperepelov/testarc-demo.git"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "check": "npm test && npm run format:check",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "node --test packages/scenarios/test/*.test.js verification/test/*.test.js scripts/test/*.test.js",
+    "test:playwright": "npm --workspace @testarc-demo/playwright run test",
+    "test:jest": "npm --workspace @testarc-demo/jest run test",
+    "test:vitest": "npm --workspace @testarc-demo/vitest run test",
+    "workloads": "node --env-file-if-exists=.env scripts/run-workloads.js",
+    "verify:api": "node --env-file-if-exists=.env verification/api.js",
+    "verify:ui": "node --env-file-if-exists=.env node_modules/@playwright/test/cli.js test --config verification/ui/playwright.config.js",
+    "e2e": "node --env-file-if-exists=.env scripts/run-e2e.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "@testarc/jest-reporter": "0.1.0-alpha.1",
+    "@testarc/playwright-reporter": "0.1.0-alpha.1",
+    "@testarc/vitest-reporter": "0.1.0-alpha.1",
+    "jest": "30.2.0",
+    "prettier": "3.8.1",
+    "vitest": "4.1.0"
+  }
+}

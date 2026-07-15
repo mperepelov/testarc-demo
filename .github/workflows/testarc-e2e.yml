@@ -1,0 +1,152 @@
+name: TestArc black-box E2E
+
+on:
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: Deterministic scenario seed (defaults to the workflow date and run ID)
+        required: false
+        type: string
+  schedule:
+    - cron: "0 6 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testarc-e2e
+  cancel-in-progress: false
+
+jobs:
+  context:
+    if: github.event_name == 'workflow_dispatch' || vars.TESTARC_E2E_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      started_at: ${{ steps.context.outputs.started_at }}
+      seed: ${{ steps.context.outputs.seed }}
+    steps:
+      - id: context
+        env:
+          REQUESTED_SEED: ${{ inputs.seed }}
+        run: |
+          echo "started_at=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" >> "$GITHUB_OUTPUT"
+          echo "seed=${REQUESTED_SEED:-$(date -u +%Y-%m-%d)-${GITHUB_RUN_ID}}" >> "$GITHUB_OUTPUT"
+
+  playwright:
+    needs: context
+    environment: railway-e2e
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run Playwright workload and retain its intentional exit status
+        env:
+          TESTARC_REPORTING_ENABLED: "true"
+          TESTARC_API_URL: ${{ secrets.TESTARC_API_URL }}
+          TESTARC_API_KEY: ${{ secrets.TESTARC_API_KEY }}
+          TESTARC_PROJECT_ID: ${{ secrets.TESTARC_PROJECT_ID }}
+          TESTARC_BRANCH: main
+          TESTARC_COMMIT_SHA: ${{ github.sha }}
+          TESTARC_ENVIRONMENT: github-actions
+          TESTARC_SCENARIO_SEED: ${{ needs.context.outputs.seed }}
+        run: node scripts/run-workload.js playwright
+      - uses: actions/upload-artifact@v4
+        with:
+          name: workload-playwright
+          path: artifacts/workloads/playwright.json
+
+  jest:
+    needs: context
+    environment: railway-e2e
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Run Jest workload and retain its intentional exit status
+        env:
+          TESTARC_REPORTING_ENABLED: "true"
+          TESTARC_API_URL: ${{ secrets.TESTARC_API_URL }}
+          TESTARC_API_KEY: ${{ secrets.TESTARC_API_KEY }}
+          TESTARC_PROJECT_ID: ${{ secrets.TESTARC_PROJECT_ID }}
+          TESTARC_BRANCH: main
+          TESTARC_COMMIT_SHA: ${{ github.sha }}
+          TESTARC_ENVIRONMENT: github-actions
+          TESTARC_SCENARIO_SEED: ${{ needs.context.outputs.seed }}
+        run: node scripts/run-workload.js jest
+      - uses: actions/upload-artifact@v4
+        with:
+          name: workload-jest
+          path: artifacts/workloads/jest.json
+
+  vitest:
+    needs: context
+    environment: railway-e2e
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Run Vitest workload and retain its intentional exit status
+        env:
+          TESTARC_REPORTING_ENABLED: "true"
+          TESTARC_API_URL: ${{ secrets.TESTARC_API_URL }}
+          TESTARC_API_KEY: ${{ secrets.TESTARC_API_KEY }}
+          TESTARC_PROJECT_ID: ${{ secrets.TESTARC_PROJECT_ID }}
+          TESTARC_BRANCH: main
+          TESTARC_COMMIT_SHA: ${{ github.sha }}
+          TESTARC_ENVIRONMENT: github-actions
+          TESTARC_SCENARIO_SEED: ${{ needs.context.outputs.seed }}
+        run: node scripts/run-workload.js vitest
+      - uses: actions/upload-artifact@v4
+        with:
+          name: workload-vitest
+          path: artifacts/workloads/vitest.json
+
+  verify:
+    needs: [context, playwright, jest, vitest]
+    environment: railway-e2e
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: workload-*
+          path: artifacts/workloads
+          merge-multiple: true
+      - name: Verify ingestion through the public API
+        env:
+          TESTARC_REPORTING_ENABLED: "true"
+          TESTARC_API_URL: ${{ secrets.TESTARC_API_URL }}
+          TESTARC_API_KEY: ${{ secrets.TESTARC_API_KEY }}
+          TESTARC_PROJECT_ID: ${{ secrets.TESTARC_PROJECT_ID }}
+          TESTARC_BRANCH: main
+          TESTARC_COMMIT_SHA: ${{ github.sha }}
+          TESTARC_ENVIRONMENT: github-actions
+          TESTARC_SCENARIO_SEED: ${{ needs.context.outputs.seed }}
+          TESTARC_RUN_STARTED_AT: ${{ needs.context.outputs.started_at }}
+        run: npm run verify:api
+      - name: Verify the public TestArc web UI
+        env:
+          TESTARC_WEB_URL: ${{ secrets.TESTARC_WEB_URL }}
+          TESTARC_E2E_EMAIL: ${{ secrets.TESTARC_E2E_EMAIL }}
+          TESTARC_E2E_PASSWORD: ${{ secrets.TESTARC_E2E_PASSWORD }}
+          TESTARC_COMMIT_SHA: ${{ github.sha }}
+        run: npm run verify:ui

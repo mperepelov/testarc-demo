@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - name: Validate the unreported UI smoke configuration
+        env:
+          TESTARC_WEB_URL: http://localhost:3000
+          TESTARC_E2E_EMAIL: demo@example.com
+          TESTARC_E2E_PASSWORD: not-used-while-listing
+          TESTARC_COMMIT_SHA: 0000000000000000000000000000000000000000
+        run: npm run verify:ui -- --list

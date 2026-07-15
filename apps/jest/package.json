@@ -1,0 +1,12 @@
+{
+  "name": "@testarc-demo/jest",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.mjs --runInBand"
+  },
+  "dependencies": {
+    "@testarc-demo/scenarios": "0.1.0"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "@testarc-demo/vitest",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run --config vitest.config.js"
+  },
+  "dependencies": {
+    "@testarc-demo/scenarios": "0.1.0"
+  }
+}
