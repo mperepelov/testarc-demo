@@ -30,7 +30,7 @@
     "e2e": "node --env-file-if-exists=.env scripts/run-e2e.js"
   },
   "devDependencies": {
-    "@playwright/test": "1.56.1",
+    "@playwright/test": "1.62.0",
     "@testarc/jest-reporter": "0.1.0-alpha.1",
     "@testarc/playwright-reporter": "0.1.0-alpha.1",
     "@testarc/vitest-reporter": "0.1.0-alpha.1",
